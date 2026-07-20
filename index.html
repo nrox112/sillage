@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sillage — assistant IA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#10121A;
+    --ink-2:#181B26;
+    --ink-3:#20232F;
+    --line:#2A2E3D;
+    --parchment:#EDEAE0;
+    --muted:#8B90A3;
+    --teal:#3FD6B8;
+    --amber:#E7A94C;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--ink);
+    color:var(--parchment);
+    font-family:'IBM Plex Sans', sans-serif;
+    overflow:hidden;
+  }
+  .app{
+    display:flex;
+    height:100vh;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width:240px;
+    min-width:240px;
+    background:var(--ink-2);
+    border-right:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+    padding:24px 18px;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:28px;
+  }
+  .brand svg{ flex-shrink:0; }
+  .brand h1{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-size:1.35rem;
+    letter-spacing:0.01em;
+  }
+  .new-chat{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--parchment);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:0.85rem;
+    padding:10px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .new-chat:hover{ border-color:var(--teal); background:rgba(63,214,184,0.06); }
+  .new-chat:focus-visible{ outline:2px solid var(--teal); outline-offset:2px; }
+
+  .sidebar-foot{
+    margin-top:auto;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.7rem;
+    color:var(--muted);
+    line-height:1.6;
+  }
+  .sidebar-foot .dot{
+    display:inline-block;
+    width:6px; height:6px;
+    border-radius:50%;
+    background:var(--teal);
+    margin-right:6px;
+  }
+
+  /* ---------- Main ---------- */
+  .main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    min-width:0;
+  }
+
+  .chat-scroll{
+    flex:1;
+    overflow-y:auto;
+    padding:40px 0 20px;
+  }
+  .chat-inner{
+    max-width:720px;
+    margin:0 auto;
+    padding:0 24px 100px;
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+  }
+
+  /* Empty state / hero */
+  .hero{
+    max-width:560px;
+    margin:8vh auto 0;
+    padding:0 24px;
+    text-align:left;
+  }
+  .hero .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.75rem;
+    color:var(--teal);
+    text-transform:uppercase;
+    letter-spacing:0.12em;
+    margin-bottom:14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .hero .eyebrow::before{
+    content:'';
+    display:inline-block;
+    width:22px; height:1px;
+    background:var(--teal);
+  }
+  .hero h2{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-size:2.3rem;
+    line-height:1.2;
+    letter-spacing:-0.01em;
+    margin-bottom:16px;
+  }
+  .hero p{
+    color:var(--muted);
+    font-size:0.98rem;
+    line-height:1.6;
+    max-width:460px;
+  }
+  .suggestions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:26px;
+  }
+  .suggestions button{
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    color:var(--parchment);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:0.82rem;
+    padding:9px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    transition:border-color .15s ease;
+  }
+  .suggestions button:hover{ border-color:var(--amber); }
+  .suggestions button:focus-visible{ outline:2px solid var(--teal); outline-offset:2px; }
+
+  /* Messages */
+  .msg{
+    display:flex;
+    gap:12px;
+    animation:rise .35s ease;
+  }
+  @keyframes rise{
+    from{ opacity:0; transform:translateY(6px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  .msg .avatar{
+    width:26px; height:26px;
+    min-width:26px;
+    border-radius:6px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.65rem;
+    margin-top:2px;
+  }
+  .msg.user .avatar{ background:rgba(63,214,184,0.15); color:var(--teal); border:1px solid rgba(63,214,184,0.3); }
+  .msg.assistant .avatar{ background:rgba(231,169,76,0.12); color:var(--amber); border:1px solid rgba(231,169,76,0.3); }
+
+  .bubble{
+    max-width:calc(100% - 40px);
+    padding:2px 0;
+  }
+  .msg.user .bubble{
+    border-right:2px solid var(--teal);
+    padding-right:14px;
+  }
+  .msg.assistant .bubble{
+    border-left:2px solid var(--amber);
+    padding-left:14px;
+  }
+  .bubble .role{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.68rem;
+    text-transform:uppercase;
+    letter-spacing:0.1em;
+    color:var(--muted);
+    margin-bottom:5px;
+  }
+  .bubble .text{
+    font-size:0.96rem;
+    line-height:1.65;
+    white-space:pre-wrap;
+    word-wrap:break-word;
+  }
+  .bubble .text p{ margin-bottom:0.8em; }
+  .bubble .text code{
+    font-family:'IBM Plex Mono', monospace;
+    background:var(--ink-3);
+    padding:2px 6px;
+    border-radius:4px;
+    font-size:0.88em;
+  }
+  .bubble .text pre{
+    background:var(--ink-3);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:12px 14px;
+    overflow-x:auto;
+    margin:8px 0;
+  }
+  .bubble .text pre code{ background:none; padding:0; }
+
+  /* Sillage — signature thinking indicator: a wake ripple */
+  .wake{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    height:26px;
+  }
+  .wake svg{ display:block; }
+  .wake-path{
+    stroke:var(--amber);
+    stroke-width:1.6;
+    fill:none;
+    stroke-linecap:round;
+    opacity:0.85;
+  }
+  @keyframes wake-move{
+    0%{ stroke-dashoffset:0; }
+    100%{ stroke-dashoffset:-48; }
+  }
+  .wake-path{
+    stroke-dasharray:6 6;
+    animation:wake-move 0.9s linear infinite;
+  }
+  .wake-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    color:var(--muted);
+  }
+
+  /* ---------- Composer ---------- */
+  .composer-wrap{
+    position:absolute;
+    bottom:0; left:0; right:0;
+    background:linear-gradient(to top, var(--ink) 60%, transparent);
+    padding:26px 0 22px;
+  }
+  .composer{
+    max-width:720px;
+    margin:0 auto;
+    padding:0 24px;
+  }
+  .composer-box{
+    display:flex;
+    align-items:flex-end;
+    gap:10px;
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px 10px 10px 16px;
+    transition:border-color .15s ease;
+  }
+  .composer-box:focus-within{ border-color:var(--teal); }
+  .composer-box textarea{
+    flex:1;
+    background:none;
+    border:none;
+    outline:none;
+    resize:none;
+    color:var(--parchment);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:0.95rem;
+    line-height:1.5;
+    max-height:160px;
+    padding:8px 0;
+  }
+  .composer-box textarea::placeholder{ color:var(--muted); }
+  .send-btn{
+    background:var(--teal);
+    border:none;
+    color:var(--ink);
+    width:36px; height:36px;
+    border-radius:9px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    flex-shrink:0;
+    transition:transform .12s ease, opacity .12s ease;
+  }
+  .send-btn:hover{ transform:translateY(-1px); }
+  .send-btn:disabled{ opacity:0.35; cursor:not-allowed; transform:none; }
+  .send-btn:focus-visible{ outline:2px solid var(--teal); outline-offset:2px; }
+  .composer-hint{
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.68rem;
+    color:var(--muted);
+    margin-top:10px;
+  }
+
+  /* Scrollbar */
+  .chat-scroll::-webkit-scrollbar{ width:8px; }
+  .chat-scroll::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
+
+  @media (max-width:720px){
+    .sidebar{ display:none; }
+    .hero h2{ font-size:1.7rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .msg{ animation:none; }
+    .wake-path{ animation:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+        <path d="M2 20 C 7 20, 7 14, 12 14 C 17 14, 17 8, 22 8" stroke="#3FD6B8" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M2 15 C 6 15, 6 10, 10 10" stroke="#E7A94C" stroke-width="1.4" stroke-linecap="round" opacity="0.6"/>
+      </svg>
+      <h1>Sillage</h1>
+    </div>
+    <button class="new-chat" id="newChatBtn">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1V13M1 7H13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      Nouvelle conversation
+    </button>
+    <div class="sidebar-foot">
+      <span class="dot"></span>connecté<br>
+      chaque échange laisse une trace
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="chat-scroll" id="chatScroll">
+      <div class="hero" id="hero">
+        <div class="eyebrow">assistant conversationnel</div>
+        <h2>Une trace de pensée, pas un script.</h2>
+        <p>Sillage répond, réfléchit et se souvient du fil de la conversation. Posez une question, demandez un texte, une explication, une idée — commencez où vous voulez.</p>
+        <div class="suggestions">
+          <button data-prompt="Explique-moi un sujet complexe simplement">Expliquer un sujet</button>
+          <button data-prompt="Aide-moi à rédiger un texte">Rédiger un texte</button>
+          <button data-prompt="Donne-moi des idées créatives sur un thème que je te propose">Trouver des idées</button>
+        </div>
+      </div>
+      <div class="chat-inner" id="chatInner"></div>
+    </div>
+
+    <div class="composer-wrap">
+      <div class="composer">
+        <div class="composer-box">
+          <textarea id="input" placeholder="Écrivez à Sillage…" rows="1"></textarea>
+          <button class="send-btn" id="sendBtn" aria-label="Envoyer">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8H14M14 8L9 3M14 8L9 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="composer-hint">Entrée pour envoyer · Maj+Entrée pour un saut de ligne</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const chatInner = document.getElementById('chatInner');
+  const chatScroll = document.getElementById('chatScroll');
+  const hero = document.getElementById('hero');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('sendBtn');
+  const newChatBtn = document.getElementById('newChatBtn');
+
+  let history = [];
+  let isThinking = false;
+
+  // auto-grow textarea
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  });
+
+  sendBtn.addEventListener('click', send);
+
+  document.querySelectorAll('.suggestions button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      input.value = btn.dataset.prompt;
+      input.focus();
+    });
+  });
+
+  newChatBtn.addEventListener('click', () => {
+    history = [];
+    chatInner.innerHTML = '';
+    hero.style.display = 'block';
+  });
+
+  function escapeHtml(str){
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // very small markdown-ish renderer: code blocks, inline code, paragraphs
+  function renderText(raw){
+    const escaped = escapeHtml(raw);
+    const withCodeBlocks = escaped.replace(/```([\s\S]*?)```/g, (m, code) => {
+      return '<pre><code>' + code.trim() + '</code></pre>';
+    });
+    const withInlineCode = withCodeBlocks.replace(/`([^`]+)`/g, '<code>$1</code>');
+    const withParagraphs = withInlineCode.split(/\n\n+/).map(p => {
+      if (p.startsWith('<pre>')) return p;
+      return '<p>' + p.replace(/\n/g,'<br>') + '</p>';
+    }).join('');
+    return withParagraphs;
+  }
+
+  function addMessage(role, text){
+    hero.style.display = 'none';
+    const msg = document.createElement('div');
+    msg.className = 'msg ' + role;
+    const label = role === 'user' ? 'Vous' : 'Sillage';
+    msg.innerHTML = `
+      <div class="avatar">${role === 'user' ? 'V' : 'S'}</div>
+      <div class="bubble">
+        <div class="role">${label}</div>
+        <div class="text">${renderText(text)}</div>
+      </div>`;
+    chatInner.appendChild(msg);
+    chatScroll.scrollTop = chatScroll.scrollHeight;
+    return msg;
+  }
+
+  function addWake(){
+    hero.style.display = 'none';
+    const msg = document.createElement('div');
+    msg.className = 'msg assistant';
+    msg.id = 'wakeMsg';
+    msg.innerHTML = `
+      <div class="avatar">S</div>
+      <div class="bubble">
+        <div class="role">Sillage</div>
+        <div class="wake">
+          <svg width="48" height="20" viewBox="0 0 48 20">
+            <path class="wake-path" d="M2 16 C 8 16, 8 10, 14 10 C 20 10, 20 4, 26 4 C 32 4, 32 12, 38 12 C 42 12, 44 8, 46 8"/>
+          </svg>
+          <span class="wake-label">réflexion en cours</span>
+        </div>
+      </div>`;
+    chatInner.appendChild(msg);
+    chatScroll.scrollTop = chatScroll.scrollHeight;
+  }
+
+  function removeWake(){
+    const el = document.getElementById('wakeMsg');
+    if (el) el.remove();
+  }
+
+  async function send(){
+    const text = input.value.trim();
+    if (!text || isThinking) return;
+
+    addMessage('user', text);
+    history.push({ role: 'user', content: text });
+    input.value = '';
+    input.style.height = 'auto';
+    isThinking = true;
+    sendBtn.disabled = true;
+    addWake();
+
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1000,
+          messages: history
+        })
+      });
+
+      const data = await response.json();
+      removeWake();
+
+      let replyText = "Désolé, je n'ai pas pu générer de réponse.";
+      if (data && data.content) {
+        replyText = data.content
+          .map(block => block.type === 'text' ? block.text : '')
+          .filter(Boolean)
+          .join('\n');
+      }
+
+      addMessage('assistant', replyText);
+      history.push({ role: 'assistant', content: replyText });
+
+    } catch (err) {
+      removeWake();
+      addMessage('assistant', "Une erreur est survenue pendant la connexion. Réessayez dans un instant.");
+      console.error(err);
+    } finally {
+      isThinking = false;
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+</script>
+</body>
+</html>
